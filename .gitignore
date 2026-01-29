@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*.png
+*.txt
+.venv/
+.env
+.idea/
+.vscode/
