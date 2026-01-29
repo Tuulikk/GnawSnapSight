@@ -57,7 +57,8 @@ def main():
 
     def take_snap_and_verify(current_output, expected_title, retry=0):
         # Ta screenshot
-        cmd = ["spectacle", "-b", "-n", "-o", current_output]
+        # -b (background), -n (nonotify), -o (output), -a (active window), -S (no shadow)
+        cmd = ["spectacle", "-b", "-n", "-S", "-o", current_output]
         if args.active_only:
             cmd.append("-a")
         
@@ -75,8 +76,8 @@ def main():
         if not expected_title:
             return True, None
 
-        # Verifiera titel med vision
-        verify_prompt = f"Does this window have the title or contain the text '{expected_title}'? Answer with 'YES' or 'NO' followed by the actual window title you see."
+        # Verifiera titel med vision - mer strikt prompt
+        verify_prompt = f"Objective observation only. Does this window title bar or main interface contain the text '{expected_title}'? Answer ONLY 'YES' or 'NO' followed by the exact title text you see. Do not describe anything else."
         result = describe_image(current_output, args.model, args.ollama_url, verify_prompt)
         
         if "YES" in result.upper():
@@ -96,12 +97,10 @@ def main():
 
     # 3. Slutgiltig Vision-beskrivning/analys
     if (args.describe or args.prompt) and success:
-        # Om vi redan fick en beskrivning under verifiering och det var en enkel prompt, 
-        # kanske vi vill ha den fulla analysen nu.
         if args.prompt:
             final_prompt = args.prompt
         else:
-            final_prompt = "Analyze this application window screenshot. Identify the application name, its main purpose, visible text, buttons, and the current state of any displayed data."
+            final_prompt = "Examine this UI screenshot objectively. List only visible elements: application name, window title, buttons labels, and specific text fields. Do not infer purpose or describe things not explicitly visible. Be concise."
         
         description = describe_image(args.output, args.model, args.ollama_url, final_prompt)
         print("\n=== Vision Beskrivning ===")
