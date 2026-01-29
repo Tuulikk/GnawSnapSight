@@ -38,6 +38,7 @@ def main():
     parser.add_argument("--ollama-url", default="http://localhost:11434", help="Ollama API URL")
     parser.add_argument("--active-only", action="store_true", default=True, help="Fånga endast aktivt fönster (default: True)")
     parser.add_argument("--prompt", help="Specifik fråga till vision-modellen (ersätter standardanalys)")
+    parser.add_argument("--expect-title", help="Verifiera att fönstret har denna titel (eller del av titel)")
 
     args = parser.parse_args()
 
@@ -54,28 +55,49 @@ def main():
             print(f"[*] Väntar {args.delay} sekunder innan screenshot...")
             time.sleep(args.delay)
 
-    # 2. Ta screenshot
-    # Spectacle flaggor: -b (background), -n (nonotify), -o (output), -a (active window)
-    cmd = ["spectacle", "-b", "-n", "-o", args.output]
-    if args.active_only:
-        cmd.append("-a")
+    def take_snap_and_verify(current_output, expected_title, retry=0):
+        # Ta screenshot
+        cmd = ["spectacle", "-b", "-n", "-o", current_output]
+        if args.active_only:
+            cmd.append("-a")
+        
+        print(f"[*] Tar screenshot (försök {retry + 1}): {current_output}")
+        try:
+            subprocess.run(cmd, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"[!] Fel vid körning av spectacle: {e}")
+            return False, None
+
+        if not os.path.exists(current_output):
+            print(f"[!] Kunde inte hitta utdatafilen {current_output}")
+            return False, None
+
+        if not expected_title:
+            return True, None
+
+        # Verifiera titel med vision
+        verify_prompt = f"Does this window have the title or contain the text '{expected_title}'? Answer with 'YES' or 'NO' followed by the actual window title you see."
+        result = describe_image(current_output, args.model, args.ollama_url, verify_prompt)
+        
+        if "YES" in result.upper():
+            print(f"[+] Verifiering lyckades: Modellen hittade '{expected_title}'")
+            return True, result
+        else:
+            print(f"[!] Verifiering misslyckades: Modellen såg: {result.strip()}")
+            return False, result
+
+    # 2. Kör huvudlogiken (med eventuell retry om titel förväntas)
+    success, last_result = take_snap_and_verify(args.output, args.expect_title)
     
-    print(f"[*] Tar screenshot av aktivt fönster: {args.output}")
-    try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"[!] Fel vid körning av spectacle: {e}")
-        sys.exit(1)
+    if not success and args.expect_title and args.launch:
+        print("[*] Provar igen om 3 sekunder (fönstret kanske inte hade fokus än)...")
+        time.sleep(3)
+        success, last_result = take_snap_and_verify(args.output, args.expect_title, retry=1)
 
-    if not os.path.exists(args.output):
-        print(f"[!] Kunde inte hitta utdatafilen {args.output}")
-        sys.exit(1)
-
-    print(f"[+] Screenshot sparad: {args.output}")
-
-    # 3. Vision-beskrivning
-    if args.describe or args.prompt:
-        # Välj prompt: Användarens specifika fråga eller standardanalys
+    # 3. Slutgiltig Vision-beskrivning/analys
+    if (args.describe or args.prompt) and success:
+        # Om vi redan fick en beskrivning under verifiering och det var en enkel prompt, 
+        # kanske vi vill ha den fulla analysen nu.
         if args.prompt:
             final_prompt = args.prompt
         else:
@@ -86,12 +108,14 @@ def main():
         print(description)
         print("==========================\n")
         
-        # Spara även beskrivningen till en textfil om önskat? 
-        # Vi sparar den som [filnamn].txt
         desc_file = os.path.splitext(args.output)[0] + ".txt"
         with open(desc_file, "w") as f:
             f.write(description)
         print(f"[+] Beskrivning sparad till: {desc_file}")
+    elif not success and args.expect_title:
+        print(f"[!] Avbryter: Kunde inte bekräfta att rätt fönster ({args.expect_title}) var aktivt.")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

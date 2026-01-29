@@ -6,6 +6,7 @@ Ett minimalistiskt verktyg för agenter att "se" applikationer.
 - Starta en applikation och vänta på att den laddar.
 - Ta en screenshot av det aktiva fönstret (renare än hela skärmen).
 - Skicka bilden till Ollama för automatisk beskrivning (Vision).
+- **Verifiering av fönstertitel:** Använd vision-modellen för att bekräfta att rätt fönster har fångats, med automatisk retry om fokus missades.
 - **Flexibel prompt:** Ställ specifika frågor om UI:t ("Finns det felmeddelanden?", "Beskriv layouten på knapparna").
 
 ## Krav
@@ -15,26 +16,24 @@ Ett minimalistiskt verktyg för agenter att "se" applikationer.
 
 ## Användning
 
-### Grundläggande analys
-Starta kalkylatorn och få en allmän beskrivning:
+### Grundläggande analys med verifiering
+Starta kalkylatorn och säkerställ att det är rätt fönster som beskrivs:
 ```bash
-./gnawsnapsight.py --launch "kcalc" --delay 3 --describe
+./gnawsnapsight.py --launch "kcalc" --expect-title "Kcalc" --describe
 ```
 
 ### Specifika frågor (Refaktorisering / Datautvinning)
 Fråga efter specifik information i gränssnittet:
 ```bash
-./gnawsnapsight.py --launch "kcalc" --delay 3 --prompt "What is the background color of the numeric buttons?"
-```
-
-```bash
-./gnawsnapsight.py --delay 0 --prompt "Is there an error message visible in this window? If yes, what does it say?"
+./gnawsnapsight.py --launch "kcalc" --prompt "What is the background color of the numeric buttons?"
 ```
 
 ## Argument
 - `--launch <cmd>`: Kommando för att starta applikationen.
 - `--delay <sek>`: Väntetid innan screenshot tas (default: 2.0).
 - `--describe`: Utför en standardanalys av fönstret.
-- `--prompt "<text>"`: Ställ en specifik fråga till vision-modellen (implicerar `--describe`).
+- `--prompt "<text>"`: Ställ en specifik fråga till vision-modellen.
+- `--expect-title "<titel>"`: Verifiera att fönstret innehåller denna titel via vision-modellen.
 - `--model <namn>`: Ollama-modell (default: `llama3.2-vision:11b`).
 - `--output <fil>`: Filnamn för screenshot (default: `snap.png`).
+- `--ollama-url <url>`: URL till Ollama API (default: `http://localhost:11434`).
