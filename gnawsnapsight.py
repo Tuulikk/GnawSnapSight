@@ -77,7 +77,7 @@ def main():
             return True, None
 
         # Verifiera titel med vision - mer strikt prompt
-        verify_prompt = f"Objective observation only. Does this window title bar or main interface contain the text '{expected_title}'? Answer ONLY 'YES' or 'NO' followed by the exact title text you see. Do not describe anything else."
+        verify_prompt = f"Objective observation only. Focus strictly on the primary application window in this image. Does its title bar or main interface contain the text '{expected_title}'? Answer ONLY 'YES' or 'NO' followed by the exact title text you see. Ignore everything outside the main app box."
         result = describe_image(current_output, args.model, args.ollama_url, verify_prompt)
         
         if "YES" in result.upper():
@@ -100,7 +100,7 @@ def main():
         if args.prompt:
             final_prompt = args.prompt
         else:
-            final_prompt = "Examine this UI screenshot objectively. List only visible elements: application name, window title, buttons labels, and specific text fields. Do not infer purpose or describe things not explicitly visible. Be concise."
+            final_prompt = "Examine the main application window in this screenshot. IGNORE the desktop background, taskbars, or any other elements outside the primary app box. List only visible elements WITHIN the app window: application name, window title, button labels, and specific text fields. Be concise and objective."
         
         description = describe_image(args.output, args.model, args.ollama_url, final_prompt)
         print("\n=== Vision Beskrivning ===")
